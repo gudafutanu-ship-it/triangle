@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直角三角形（勾配）自動計算機</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            max-width: 450px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 1.4rem;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #2c3e50;
+        }
+        p.description {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .svg-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #34495e;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        input[type="number"]:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        input[type="number"]:read-only {
+            background-color: #e9ecef;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .btn-calc {
+            background-color: #3498db;
+            color: #fff;
+        }
+        .btn-calc:hover {
+            background-color: #2980b9;
+        }
+        .btn-reset {
+            background-color: #e74c3c;
+            color: #fff;
+        }
+        .btn-reset:hover {
+            background-color: #c0392b;
+        }
+        .status {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            text-align: center;
+            min-height: 1.2em;
+            color: #e67e22;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>直角三角形 自動計算機</h1>
+    <p class="description">長さを同じ単位（mm, cm, m等）で揃えて入力してください。</p>
+
+    <!-- 直角三角形の概念図 -->
+    <div class="svg-container">
+        <svg width="200" height="120" viewBox="0 0 200 120">
+            <polygon points="20,100 180,100 180,20" fill="none" stroke="#34495e" stroke-width="2"/>
+            <path d="M 170,100 L 170,90 L 180,90" fill="none" stroke="#34495e" stroke-width="1.5"/>
+            <path d="M 50,100 A 30 30 0 0 0 45,88" fill="none" stroke="#e67e22" stroke-width="1.5"/>
+            <text x="100" y="115" font-size="12" text-anchor="middle" fill="#333">平面 (底辺)</text>
+            <text x="190" y="65" font-size="12" text-anchor="start" fill="#333">高さ</text>
+            <text x="90" y="50" font-size="12" text-anchor="middle" fill="#333">斜面</text>
+            <text x="55" y="95" font-size="10" fill="#e67e22">角度θ (°)</text>
+        </svg>
+    </div>
+
+    <div class="input-group">
+        <label for="base">平面 (底辺)</label>
+        <input type="number" id="base" step="any" placeholder="例: 1000">
+    </div>
+
+    <div class="input-group">
+        <label for="height">高さ</label>
+        <input type="number" id="height" step="any" placeholder="例: 363.97">
+    </div>
+
+    <div class="input-group">
+        <label for="hypotenuse">斜面 (斜辺)</label>
+        <input type="number" id="hypotenuse" step="any" placeholder="例: 1064.18">
+    </div>
+
+    <div class="input-group">
+        <label for="angle">角度 (度°)</label>
+        <input type="number" id="angle" step="any" min="0.0001" max="89.9999" placeholder="例: 20">
+    </div>
+
+    <div class="status" id="statusMessage">2項目を入力して「計算実行」を押してください</div>
+
+    <div class="btn-group">
+        <button class="btn-calc" onclick="calculate()">計算実行</button>
+        <button class="btn-reset" onclick="resetForm()">リセット</button>
+    </div>
+</div>
+
+<script>
+    const inputs = {
+        base: document.getElementById('base'),
+        height: document.getElementById('height'),
+        hypotenuse: document.getElementById('hypotenuse'),
+        angle: document.getElementById('angle')
+    };
+    const statusMsg = document.getElementById('statusMessage');
+
+    function calculate() {
+        // 値が入っている項目を取得
+        const filledKeys = Object.keys(inputs).filter(key => inputs[key].value !== '' && !isNaN(parseFloat(inputs[key].value)));
+
+        if (filledKeys.length !== 2) {
+            alert("ちょうど2つの項目を入力してから計算ボタンを押してください。");
+            return;
+        }
+
+        let b = parseFloat(inputs.base.value);
+        let h = parseFloat(inputs.height.value);
+        let s = parseFloat(inputs.hypotenuse.value);
+        let a = parseFloat(inputs.angle.value);
+
+        const rad = deg => deg * (Math.PI / 180);
+        const deg = rad => rad * (180 / Math.PI);
+
+        const keys = filledKeys;
+
+        // 計算ロジック
+        if (keys.includes('base') && keys.includes('height')) {
+            s = Math.sqrt(b * b + h * h);
+            a = deg(Math.atan2(h, b));
+        } else if (keys.includes('base') && keys.includes('hypotenuse')) {
+            if (s <= b) { alert("斜面は平面より大きい値を指定してください"); return; }
+            h = Math.sqrt(s * s - b * b);
+            a = deg(Math.acos(b / s));
+        } else if (keys.includes('base') && keys.includes('angle')) {
+            if (a <= 0 || a >= 90) { alert("角度は0度より大きく90度未満で指定してください"); return; }
+            h = b * Math.tan(rad(a));
+            s = b / Math.cos(rad(a));
+        } else if (keys.includes('height') && keys.includes('hypotenuse')) {
+            if (s <= h) { alert("斜面は高さより大きい値を指定してください"); return; }
+            b = Math.sqrt(s * s - h * h);
+            a = deg(Math.asin(h / s));
+        } else if (keys.includes('height') && keys.includes('angle')) {
+            if (a <= 0 || a >= 90) { alert("角度は0度より大きく90度未満で指定してください"); return; }
+            b = h / Math.tan(rad(a));
+            s = h / Math.sin(rad(a));
+        } else if (keys.includes('hypotenuse') && keys.includes('angle')) {
+            if (a <= 0 || a >= 90) { alert("角度は0度より大きく90度未満で指定してください"); return; }
+            b = s * Math.cos(rad(a));
+            h = s * Math.sin(rad(a));
+        }
+
+        // 結果を出力（計算された場所を読み取り専用にする）
+        Object.keys(inputs).forEach(key => {
+            if (!keys.includes(key)) {
+                inputs[key].readOnly = true;
+            }
+        });
+
+        inputs.base.value = round(b);
+        inputs.height.value = round(h);
+        inputs.hypotenuse.value = round(s);
+        inputs.angle.value = round(a);
+
+        statusMsg.textContent = "計算完了（別の値を計算する場合はリセットしてください）";
+        statusMsg.style.color = "#27ae60";
+    }
+
+    function round(val) {
+        return Math.round(val * 100) / 100; // 小数点第2位までに丸め
+    }
+
+    function resetForm() {
+        Object.keys(inputs).forEach(key => {
+            inputs[key].value = '';
+            inputs[key].readOnly = false;
+        });
+        statusMsg.textContent = "2項目を入力して「計算実行」を押してください";
+        statusMsg.style.color = "#e67e22";
+    }
+</script>
+
+</body>
+</html>
