@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="triangle">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>直角三角形（勾配）自動計算機</title>
-    <style>
+   <style>
         * {
             box-sizing: border-box;
             margin: 0;
@@ -42,12 +42,16 @@
         p.description {
             font-size: 0.85rem;
             color: #666;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-align: center;
         }
         .svg-container {
             text-align: center;
             margin-bottom: 20px;
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px dashed #e0e0e0;
         }
         .input-group {
             margin-bottom: 15px;
@@ -121,16 +125,20 @@
     <h1>直角三角形 自動計算機</h1>
     <p class="description">長さを同じ単位（mm, cm, m等）で揃えて入力してください。</p>
 
-    <!-- 直角三角形の概念図 -->
+    <!-- 直角三角形の動的SVG図面 -->
     <div class="svg-container">
-        <svg width="200" height="120" viewBox="0 0 200 120">
-            <polygon points="20,100 180,100 180,20" fill="none" stroke="#34495e" stroke-width="2"/>
-            <path d="M 170,100 L 170,90 L 180,90" fill="none" stroke="#34495e" stroke-width="1.5"/>
-            <path d="M 50,100 A 30 30 0 0 0 45,88" fill="none" stroke="#e67e22" stroke-width="1.5"/>
-            <text x="100" y="115" font-size="12" text-anchor="middle" fill="#333">平面 (底辺)</text>
-            <text x="190" y="65" font-size="12" text-anchor="start" fill="#333">高さ</text>
-            <text x="90" y="50" font-size="12" text-anchor="middle" fill="#333">斜面</text>
-            <text x="55" y="95" font-size="10" fill="#e67e22">角度θ (°)</text>
+        <svg id="triangleSvg" width="280" height="160" viewBox="0 0 280 160">
+            <!-- 三角形本体 -->
+            <polygon id="svgPolygon" points="40,135 240,135 240,35" fill="none" stroke="#34495e" stroke-width="2"/>
+            <!-- 直角記号 -->
+            <path id="svgRightAngle" d="M 225,135 L 225,120 L 240,120" fill="none" stroke="#34495e" stroke-width="1.5"/>
+            <!-- 角度マーク -->
+            <path id="svgAngleArc" d="M 70,135 A 30 30 0 0 0 64,123" fill="none" stroke="#e67e22" stroke-width="1.5"/>
+            <!-- テキストラベル（数値表示用） -->
+            <text id="labelBase" x="140" y="152" font-size="11" font-weight="bold" text-anchor="middle" fill="#2c3e50">平面</text>
+            <text id="labelHeight" x="245" y="85" font-size="11" font-weight="bold" text-anchor="start" fill="#2c3e50">高さ</text>
+            <text id="labelHypotenuse" x="130" y="75" font-size="11" font-weight="bold" text-anchor="middle" fill="#2c3e50">斜面</text>
+            <text id="labelAngle" x="75" y="130" font-size="10" font-weight="bold" fill="#e67e22">θ</text>
         </svg>
     </div>
 
@@ -172,7 +180,6 @@
     const statusMsg = document.getElementById('statusMessage');
 
     function calculate() {
-        // 値が入っている項目を取得
         const filledKeys = Object.keys(inputs).filter(key => inputs[key].value !== '' && !isNaN(parseFloat(inputs[key].value)));
 
         if (filledKeys.length !== 2) {
@@ -216,24 +223,97 @@
             h = s * Math.sin(rad(a));
         }
 
-        // 結果を出力（計算された場所を読み取り専用にする）
+        // 入力不可制御
         Object.keys(inputs).forEach(key => {
             if (!keys.includes(key)) {
                 inputs[key].readOnly = true;
             }
         });
 
-        inputs.base.value = round(b);
-        inputs.height.value = round(h);
-        inputs.hypotenuse.value = round(s);
-        inputs.angle.value = round(a);
+        // 数値を丸める
+        const roundB = round(b);
+        const roundH = round(h);
+        const roundS = round(s);
+        const roundA = round(a);
+
+        // フォームへ出力
+        inputs.base.value = roundB;
+        inputs.height.value = roundH;
+        inputs.hypotenuse.value = roundS;
+        inputs.angle.value = roundA;
+
+        // 図形（SVG）の形状とテキスト（数値）を更新
+        updateSvg(b, h, a, roundB, roundH, roundS, roundA);
 
         statusMsg.textContent = "計算完了（別の値を計算する場合はリセットしてください）";
         statusMsg.style.color = "#27ae60";
     }
 
+    function updateSvg(b, h, angleDeg, valB = null, valH = null, valS = null, valA = null) {
+        const svgWidth = 280;
+        const svgHeight = 160;
+        const padding = 40;
+
+        const maxW = svgWidth - padding * 2;
+        const maxH = svgHeight - padding * 2;
+
+        const scale = Math.min(maxW / b, maxH / h);
+        const drawB = b * scale;
+        const drawH = h * scale;
+
+        const xLeft = padding;
+        const yBottom = svgHeight - padding;
+        const xRight = xLeft + drawB;
+        const yTop = yBottom - drawH;
+
+        // ポリゴン更新
+        document.getElementById('svgPolygon').setAttribute('points', `${xLeft},${yBottom} ${xRight},${yBottom} ${xRight},${yTop}`);
+
+        // 直角記号
+        const rSize = Math.min(12, Math.min(drawB, drawH) * 0.3);
+        document.getElementById('svgRightAngle').setAttribute('d', 
+            `M ${xRight - rSize},${yBottom} L ${xRight - rSize},${yBottom - rSize} L ${xRight},${yBottom - rSize}`
+        );
+
+        // 角度アーク
+        const arcR = Math.min(25, drawB * 0.3);
+        const radA = angleDeg * (Math.PI / 180);
+        const arcX = xLeft + arcR * Math.cos(radA);
+        const arcY = yBottom - arcR * Math.sin(radA);
+        document.getElementById('svgAngleArc').setAttribute('d', 
+            `M ${xLeft + arcR},${yBottom} A ${arcR} ${arcR} 0 0 0 ${arcX},${arcY}`
+        );
+
+        // ラベルに表示するテキスト（値があれば数値、なければ名称）
+        const textB = valB !== null ? `${valB}` : "平面";
+        const textH = valH !== null ? `${valH}` : "高さ";
+        const textS = valS !== null ? `${valS}` : "斜面";
+        const textA = valA !== null ? `${valA}°` : "θ";
+
+        // ラベルテキストと位置の更新
+        const lblB = document.getElementById('labelBase');
+        lblB.textContent = textB;
+        lblB.setAttribute('x', xLeft + drawB / 2);
+        lblB.setAttribute('y', yBottom + 18);
+
+        const lblH = document.getElementById('labelHeight');
+        lblH.textContent = textH;
+        lblH.setAttribute('x', xRight + 5);
+        lblH.setAttribute('y', yBottom - drawH / 2 + 4);
+
+        const lblS = document.getElementById('labelHypotenuse');
+        lblS.textContent = textS;
+        lblS.setAttribute('x', xLeft + drawB / 2 - 10);
+        lblS.setAttribute('y', yBottom - drawH / 2 - 8);
+
+        const lblA = document.getElementById('labelAngle');
+        lblA.textContent = textA;
+        lblA.setAttribute('x', xLeft + arcR + 8);
+        lblA.setAttribute('y', yBottom - 5);
+    }
+
     function round(val) {
-        return Math.round(val * 100) / 100; // 小数点第2位までに丸め
+        return Math.round(val * 100) / 100;
     }
 
     function resetForm() {
@@ -243,6 +323,9 @@
         });
         statusMsg.textContent = "2項目を入力して「計算実行」を押してください";
         statusMsg.style.color = "#e67e22";
+
+        // 初期状態（名称表示）に戻す
+        updateSvg(100, 100, 45);
     }
 </script>
 
